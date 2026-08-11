@@ -1,71 +1,114 @@
+The reason the pins are not displaying is that your CSV data lacks column headers (`name,w3w,lat,lng`) and comma delimiters to separate the fields, making it unreadable to the map script.
+
+Here is the exact fix broken down into two steps.
+
+### Step 1: Replace the contents of `locations.csv`
+
+Copy and paste this formatted text directly into your `locations.csv` file on GitHub:
+
+```csv
+name,w3w,lat,lng
+Okuhle Zwane,blogger.admires.drizzling,-26.195246,28.034088
+Masedi Kaibe,geriatric.reassure.thickets,-29.315053,27.481816
+Jack Ravenscroft,obliging.lacquer.outsells,51.521311,-0.129993
+Sophie Miller,accord.consigning.cram,51.499335,-0.125867
+Lucy Parham,dinosaurs.tattooing.kennels,51.481177,-0.187317
+Juané Kruger,geraniums.trundle.bathing,-25.746124,28.188107
+Ashleigh Hubner,fateful.resided.finessing,-33.924869,18.424055
+James Hartslief,umpiring.robot.analysts,-26.107563,28.056702
+Trae du Plessis,beautifully.birthdays.overpaying,-25.753381,28.271123
+Grace Galloway,tilt.crystals.alterations,-29.560012,30.342111
+Litsitso Makara,snared.housebound.capably,-29.310111,27.485552
+Grace Ratsey,vortex.cleanse.soothing,51.500732,-0.124503
+Benjamin Leitch,restricts.outlive.surgeon,54.978252,-1.61778
+Rex Sclanders,distemper.rock.outcompete,-29.085214,26.220112
+Samuel Veenstra,louder.beret.chutney,-26.134552,27.996114
+Sky Kemp,lighting.tungsten.confiscated,-33.976551,25.602213
+Kenzy Galloway,unladylike.taillight.ouch,-29.561142,30.344055
+Grant Muller,emblems.nosh.potential,-26.142114,28.125442
+Ella Hermon,candlelight.reaming.incurs,52.205331,0.121817
+Naleli Makoala,crocheting.reignited.safely,-29.314441,27.479982
+Sinesipho Nkabini,brownness.propagate.ceremonial,-29.858661,31.021882
+Zoe Ngwenya,shuffling.situation.workaholic,-26.204103,28.047304
+Esihle Zungu,fluxes.rooms.hurling,-29.845551,30.988114
+Kyla Indeche,dinosaur.salivate.grass,1.292067,36.821945
+Jack Bedell-Sivright,hits.plonk.waterlily,51.507351,-0.127758
+
+```
+
+---
+
+### Step 2: Replace your `index.html` file
+
+Use this simplified code in `index.html`. It parses the 4 columns, creates a popup showing the person's **Name** and **What3Words** address, and auto-zooms the map to show all global pins:
+
+```html
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
+    <title>W3W Pins Map</title>
+    <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My what3words Map</title>
     
-    <!-- Leaflet Maps CSS -->
-    <link rel="stylesheet" href="https://unpkg.com" crossorigin="" />
-    
+    <!-- Map library (Leaflet) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- CSV parser library (PapaParse) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+
     <style>
-        html, body, #map {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-        }
+        body, html { margin: 0; padding: 0; height: 100%; }
+        #map { height: 100vh; width: 100vw; }
     </style>
 </head>
 <body>
 
     <div id="map"></div>
 
-    <!-- Leaflet JS & PapaParse CSV Engine -->
-    <script src="https://unpkg.com" crossorigin=""></script>
-    <script src="https://cloudflare.com"></script>
-
     <script>
-        const CSV_FILE_PATH = 'locations.csv'; 
+        // 1. Initialize map
+        var map = L.map('map').setView([0, 0], 2);
 
-        // Initialize Map globally zoomed out
-        const map = L.map('map').setView([0, 0], 2);
-
-        // Load premium looking minimalist light map tiles
-        L.tileLayer('https://{s}://{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> &copy; <a href="https://carto.com">CARTO</a>'
+        // 2. Add tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        const markerBounds = [];
-
-        // Read and parse your GitHub CSV data
-        Papa.parse(CSV_FILE_PATH, {
+        // 3. Load and parse the CSV
+        Papa.parse("locations.csv", {
             download: true,
             header: true,
             skipEmptyLines: true,
             complete: function(results) {
-                const rows = results.data;
-                
-                for (const row of rows) {
-                    const words = row.w3w; 
-                    const label = row.name;
-                    const lat = parseFloat(row.lat);
-                    const lng = parseFloat(row.lng);
+                var markers = L.featureGroup();
 
-                    // Drop pin if valid numbers exist in the row columns
+                results.data.forEach(function(row) {
+                    var lat = parseFloat(row.lat);
+                    var lng = parseFloat(row.lng);
+                    var name = row.name;
+                    var w3w = row.w3w;
+
                     if (!isNaN(lat) && !isNaN(lng)) {
-                        const marker = L.marker([lat, lng]).addTo(map);
-                        marker.bindPopup(`<b>${label}</b><br><a href="https://what3words.com{words}" target="_blank">///${words}</a>`);
+                        // Create marker with popup showing Name + W3W address
+                        var marker = L.marker([lat, lng])
+                            .bindPopup("<b>" + name + "</b><br>///" + w3w);
                         
-                        markerBounds.push([lat, lng]);
+                        markers.addLayer(marker);
                     }
-                }
+                });
 
-                // Frame map around your specific coordinates automatically
-                if (markerBounds.length > 0) {
-                    map.fitBounds(markerBounds, { padding: [50, 50] });
+                markers.addTo(map);
+
+                // Auto-fit map boundaries to include all markers
+                if (markers.getLayers().length > 0) {
+                    map.fitBounds(markers.getBounds(), { padding: [30, 30] });
                 }
             }
         });
     </script>
 </body>
 </html>
+
+```
