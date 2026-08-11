@@ -73,7 +73,7 @@
                     if (words) {
                         try {
                             // Call what3words to translate 3-word combinations to standard lat/long
-                            const response = await fetch(`https://what3words.com{words}&key=${W3W_API_KEY}`);
+                            const response = await fetch(`https://what3words.com{words}&key=${W3W_API_KEY}`, {referrerPolicy: "no-referrer-when-downgrade"});
                             const data = await response.json();
                             
                             if (data.coordinates) {
