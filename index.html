@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Hosted what3words Map</title>
+    
+    <!-- Leaflet Maps CSS -->
+    <link rel="stylesheet" href="https://unpkg.com" crossorigin="" />
+    
+    <style>
+        html, body, #map {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        /* Style for a clean, non-intrusive loading message */
+        #loading {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            z-index: 1000;
+            font-family: sans-serif;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading">Loading CSV and converting what3words...</div>
+    <div id="map"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com" crossorigin=""></script>
+    <!-- PapaParse JS (Converts CSV files into JavaScript objects) -->
+    <script src="https://cloudflare.com"></script>
+
+    <script>
+        // 1. configuration - ADD YOUR FREE WHAT3WORDS API KEY HERE
+        const W3W_API_KEY = 'YOUR_WHAT3WORDS_API_KEY'; 
+        const CSV_FILE_PATH = 'locations.csv'; // Must match your CSV filename on GitHub
+
+        // 2. Initialize Map
+        const map = L.map('map').setView([0, 0], 2); // Starts zoomed out globally
+
+        // 3. Add Free Base Map Tiles
+        L.tileLayer('https://{s}://{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://openstreetmap.org">OpenStreetMap</a> &copy; <a href="https://carto.com">CARTO</a>'
+        }).addTo(map);
+
+        // Array to keep track of all mapped coordinates so we can auto-zoom later
+        const markerBounds = [];
+
+        // 4. Fetch and Parse the CSV file from your GitHub repository
+        Papa.parse(CSV_FILE_PATH, {
+            download: true,
+            header: true, // Uses the first row of your CSV as property names
+            skipEmptyLines: true,
+            complete: async function(results) {
+                const rows = results.data;
+                
+                // Loop through each row in the CSV
+                for (const row of rows) {
+                    // Change 'w3w' if your CSV column has a different header (e.g., 'three_words')
+                    const words = row.w3w || row.words || row.what3words; 
+                    const label = row.name || row.label || "Location"; // Label for map popup
+
+                    if (words) {
+                        try {
+                            // Call what3words API to get Latitude and Longitude
+                            const response = await fetch(`https://what3words.com{words}&key=${W3W_API_KEY}`);
+                            const data = await response.json();
+                            
+                            if (data.coordinates) {
+                                const lat = data.coordinates.lat;
+                                const lng = data.coordinates.lng;
+                                
+                                // Create a map pin
+                                const marker = L.marker([lat, lng]).addTo(map);
+                                marker.bindPopup(`<b>${label}</b><br>///${words}`);
+                                
+                                // Save coordinates for auto-framing
+                                markerBounds.push([lat, lng]);
+                            }
+                        } catch (error) {
+                            console.error(`Error converting words: ${words}`, error);
+                        }
+                    }
+                }
+
+                // Hide the loading box and automatically center the map on your points
+                document.getElementById('loading').style.display = 'none';
+                if (markerBounds.length > 0) {
+                    map.fitBounds(markerBounds, { padding: [50, 50] });
+                }
+            }
+        });
+    </script>
+</body>
+</html>
